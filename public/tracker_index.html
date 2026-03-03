@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>Bike Tracker - Real Time</title>
+    <style>
+        #map { height: 100vh; width: 100%; }
+        body { margin: 0; padding: 0; }
+        #info {
+            position: absolute; top: 10px; left: 10px; z-index: 99;
+            background: white; padding: 10px; border-radius: 5px; 
+            font-family: sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info">
+        <b>סטטוס:</b> <span id="status">מתחבר...</span><br>
+        <b>קואורדינטות:</b> <span id="coords">-</span>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        let map, marker, bikePath;
+        let pathCoordinates = []; 
+        const socket = io();
+
+        function initMap() {
+            const startPos = { lat: 32.1133, lng: 34.8178 }; // נקודת התחלה (אפקה)
+            
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 16,
+                center: startPos,
+            });
+
+            const bikeIcon = {
+                url: "https://cdn-icons-png.flaticon.com/512/3198/3198336.png",
+                scaledSize: new google.maps.Size(50, 50),
+                anchor: new google.maps.Point(25, 25)
+            };
+
+            marker = new google.maps.Marker({
+                position: startPos,
+                map: map,
+                icon: bikeIcon
+            });
+
+            bikePath = new google.maps.Polyline({
+                path: pathCoordinates,
+                geodesic: true,
+                strokeColor: "#FF0000",
+                strokeOpacity: 1.0,
+                strokeWeight: 4
+            });
+
+            bikePath.setMap(map);
+            document.getElementById('status').innerText = "מחובר. מחכה לנתונים...";
+        }
+
+        socket.on('locationUpdate', (data) => {
+            const newPos = { lat: data.lat, lng: data.lng };
+            pathCoordinates.push(newPos);
+            bikePath.setPath(pathCoordinates);
+            marker.setPosition(newPos);
+            map.panTo(newPos);
+
+            document.getElementById('status').innerText = "בתנועה";
+            document.getElementById('coords').innerText = `${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}`;
+        });
+    </script>
+
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyALAiW_7DLjR3KPRIe5zgPNQ-wWhVL_rM0&callback=initMap">
+    </script>
+</body>
+</html>
