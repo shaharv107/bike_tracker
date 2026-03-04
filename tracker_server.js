@@ -17,7 +17,9 @@ app.use(express.static('public'));
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'tracker_index.html'));
 });
-
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/public/tracker_index.html');
+});
 // Endpoint לקבלת נתונים
 app.post('/api/location', (req, res) => {
     const { lat, lng } = req.body;
@@ -33,7 +35,8 @@ app.post('/api/location', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is officially live on port ${PORT}`);
 });
+
 });
