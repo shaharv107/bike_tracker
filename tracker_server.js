@@ -62,7 +62,7 @@ app.post('/api/alert', async (req, res) => {
         priority: 2,       // Level 2 = Emergency Priority (Bypasses Silent/DND)
         retry: 30,         // Resend notification every 30 seconds until acknowledged
         expire: 3600,      // Notification expires after 1 hour
-        sound: "siren"     // High-intensity alarm sound
+        sound: "MyAlertSound"     // High-intensity alarm sound
     };
 
     try {
@@ -111,3 +111,4 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`Security Protocol: Critical Alerts ACTIVE`);
     console.log(`================================================`);
 });
+
