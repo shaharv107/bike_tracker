@@ -17,13 +17,19 @@ app.use(bodyParser.json());
 // --- 1. הזרקה דינמית של מפתח ה-API לדף הבית ---
 // חשוב: זה מופיע לפני express.static כדי להבטיח שהקוד שלך ירוץ קודם
 app.get('/', (req, res) => {
-    // וודא שהקובץ בתיקיית public אכן נקרא tracker_index.html
     const filePath = path.join(__dirname, 'public', 'tracker_index.html');
     
     fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error("Error reading HTML file:", err);
-            return res.status(500).send('Error loading page - Make sure tracker_index.html exists in public folder');
+        if (err) return res.status(500).send('Error');
+
+        const apiKey = process.env.MAPS_API_KEY || "MISSING_KEY";
+        
+        // שורת בדיקה - תראה אותה ב-Logs של Render
+        console.log("Current API Key being injected:", apiKey.substring(0, 5) + "..."); 
+        
+        const modifiedData = data.replace('__GOOGLE_MAPS_API_KEY__', apiKey);
+        res.send(modifiedData);
+    });
         }
 
         // שליפת המפתח מה-Environment Variables של Render
@@ -65,4 +71,5 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Security Status: API Key injection is ACTIVE`);
 });
+
 
