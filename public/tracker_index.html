@@ -3,171 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Bike Tracker | IoT Dashboard</title>
-    
+    <title>Bike Tracker Dashboard</title>
     <style>
-        :root {
-            --primary-color: #2563eb;
-            --status-bg: rgba(255, 255, 255, 0.9);
-            --text-main: #1e293b;
-            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        :root { --alarm-color: #ff0000; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; overflow: hidden; }
+        #map { height: 100vh; width: 100%; transition: background 0.5s; }
+        
+        #overlay {
+            position: absolute; top: 15px; left: 15px; z-index: 1000;
+            background: white; padding: 15px; border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #ddd;
         }
 
-        body, html { 
-            margin: 0; 
-            padding: 0; 
-            height: 100%; 
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: #f8fafc;
+        .alarm-active { animation: pulse-red 1s infinite; }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0px rgba(255, 0, 0, 0.7); }
+            100% { box-shadow: 0 0 0 20px rgba(255, 0, 0, 0); }
         }
-
-        #map { 
-            height: 100vh; 
-            width: 100%; 
-        }
-
-        /* Dashboard overlay panel */
-        #dashboard {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            background: var(--status-bg);
-            padding: 16px;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            min-width: 240px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .info-group { margin-bottom: 12px; }
-        .label { 
-            font-size: 0.75rem; 
-            font-weight: 600; 
-            color: #64748b; 
-            text-transform: uppercase; 
-            letter-spacing: 0.05em;
-        }
-        .value { 
-            font-size: 0.95rem; 
-            font-weight: 500; 
-            color: var(--text-main); 
-            font-family: 'Monaco', monospace;
-        }
-
-        #status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #cbd5e1;
-            margin-right: 6px;
-        }
-        .status-active { background: #22c55e !important; }
     </style>
 </head>
 <body>
 
-    <div id="dashboard">
-        <div class="info-group">
-            <div class="label">System Status</div>
-            <div id="status-text" class="value">
-                <span id="status-indicator"></span>Initializing...
-            </div>
-        </div>
-        <div class="info-group" style="margin-bottom: 0;">
-            <div class="label">Live Coordinates</div>
-            <div id="coords" class="value">Waiting for GPS...</div>
-        </div>
+    <div id="overlay">
+        <div style="font-size: 0.8em; color: gray;">SYSTEM STATUS</div>
+        <div id="status" style="font-weight: bold;">Standby...</div>
+        <hr>
+        <div id="coords" style="font-family: monospace;">Waiting for data...</div>
     </div>
 
     <div id="map"></div>
 
     <script src="/socket.io/socket.io.js"></script>
-
     <script>
-        /**
-         * Global application state
-         */
-        let map, marker, bikePath;
-        let pathCoordinates = [];
+        let map, marker, path;
+        let coordsList = [];
         const socket = io();
 
-        /**
-         * Initialize Google Maps
-         * Utilizing AdvancedMarkerElement for modern performance and customization.
-         */
         async function initMap() {
             const { Map } = await google.maps.importLibrary("maps");
             const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
 
-            // Initial center point (e.g., Afeka College)
-            const initialPosition = { lat: 32.1133, lng: 34.8178 }; 
+            const afekaPos = { lat: 32.1133, lng: 34.8178 };
+            map = new Map(document.getElementById("map"), { zoom: 16, center: afekaPos, mapId: "TRACKER_ID" });
 
-            map = new Map(document.getElementById("map"), {
-                zoom: 17,
-                center: initialPosition,
-                mapId: "DEMO_MAP_ID", // Required for AdvancedMarkerElement
-                disableDefaultUI: false,
-                mapTypeControl: false
-            });
-
-            // Customized Marker Appearance
             const bikeIcon = document.createElement('img');
             bikeIcon.src = "https://cdn-icons-png.flaticon.com/512/3198/3198336.png";
-            bikeIcon.style.width = "45px";
+            bikeIcon.style.width = "40px";
 
-            marker = new AdvancedMarkerElement({
-                map: map,
-                position: initialPosition,
-                content: bikeIcon,
-                title: "Current Bike Location"
-            });
-
-            // Polyline configuration for path tracking
-            bikePath = new google.maps.Polyline({
-                path: pathCoordinates,
-                geodesic: true,
-                strokeColor: "#2563eb",
-                strokeOpacity: 0.8,
-                strokeWeight: 5
-            });
-
-            bikePath.setMap(map);
-            updateStatus("Connected & Waiting", false);
+            marker = new AdvancedMarkerElement({ map, position: afekaPos, content: bikeIcon });
+            path = new google.maps.Polyline({ strokeColor: "#FF0000", strokeWeight: 4, map });
+            
+            document.getElementById('status').innerText = "ONLINE";
         }
 
-        /**
-         * Real-time socket listener for location updates
-         */
+        // Handle GPS Updates
         socket.on('locationUpdate', (data) => {
-            const newPos = { lat: data.lat, lng: data.lng };
-            
-            // Log for debugging
-            console.log("[Client] New position received:", newPos);
-
-            // Update data structures
-            pathCoordinates.push(newPos);
-            bikePath.setPath(pathCoordinates);
-            
-            // Move marker and camera
-            marker.position = newPos;
-            map.panTo(newPos);
-
-            // Update UI
-            updateStatus("Active Tracking", true);
-            document.getElementById('coords').innerText = 
-                `${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}`;
+            const pos = { lat: data.lat, lng: data.lng };
+            coordsList.push(pos);
+            path.setPath(coordsList);
+            marker.position = pos;
+            map.panTo(pos);
+            document.getElementById('coords').innerText = `${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}`;
         });
 
-        /**
-         * Helper to update status UI
-         */
-        function updateStatus(text, isActive) {
-            document.getElementById('status-text').innerText = text;
-            const indicator = document.getElementById('status-indicator');
-            if (isActive) indicator.classList.add('status-active');
-        }
+        // Handle Security Breach Events
+        socket.on('securityBreach', (data) => {
+            document.getElementById('status').innerText = "🚨 ALARM TRIGGERED!";
+            document.getElementById('status').style.color = "red";
+            document.getElementById('overlay').classList.add('alarm-active');
+            alert("SECURITY ALERT: UNMAUTHORIZED MOVEMENT!");
+        });
     </script>
 
     <script async defer
