@@ -27,7 +27,7 @@ app.get('/', (req, res) => {
         }
 
         // שליפת המפתח מה-Environment Variables של Render
-        const apiKey = process.env.GOOGLE_MAPS_API_KEY || "MISSING_KEY";
+        const apiKey = process.env.MAPS_API_KEY || "MISSING_KEY";
         
         // החלפת הפלייסולדר במפתח האמיתי
         const modifiedData = data.replace('__GOOGLE_MAPS_API_KEY__', apiKey);
@@ -65,3 +65,4 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Security Status: API Key injection is ACTIVE`);
 });
+
